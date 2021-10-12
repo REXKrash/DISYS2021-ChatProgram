@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+option go_package = "./routeguide";
+
+package routeguide;
+
+service ChatService {
+    rpc JoinServer(User) returns (Empty) {}
+    rpc SendMessage(Message) returns (MessageAck) {}
+}
+
+message User {
+    string name = 1;
+}
+
+message Message {
+    string sender = 1;
+    string message = 2;
+
+}
+
+message MessageAck {
+    string status = 1;
+}
+
+message Empty {}
