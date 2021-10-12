@@ -11,6 +11,7 @@ service ChatService {
 
 message User {
     string name = 1;
+    string uuid = 2;
 }
 
 message Message {
