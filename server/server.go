@@ -20,6 +20,15 @@ type server struct {
 	pb.UnimplementedChatServiceServer
 }
 
+func broadcast(sender string, message string) {
+	log.Println(sender+":", message)
+	for _, v := range users {
+		if err := v.Send(&pb.MessageResponse{Sender: sender, Message: message}); err != nil {
+			log.Println("Failed to broadcast:", err)
+		}
+	}
+}
+
 func (s *server) ChatMessage(in pb.ChatService_ChatMessageServer) error {
 	uuid, _ := uuid.NewV4()
 	users[uuid.String()] = in
@@ -34,16 +43,10 @@ func (s *server) ChatMessage(in pb.ChatService_ChatMessageServer) error {
 	for {
 		input, error := in.Recv()
 		if error != nil {
-			log.Fatalln("Fatal", error)
+			log.Fatalln("Fatal error:", error)
 			break
 		}
-		log.Println("Received input", input.Message)
-
-		for _, v := range users {
-			if err := v.Send(&pb.MessageResponse{Sender: input.Sender, Message: input.Message}); err != nil {
-				log.Printf("broadcast err: %v", err)
-			}
-		}
+		broadcast(input.Sender, input.Message)
 	}
 	return nil
 }
