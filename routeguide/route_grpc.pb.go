@@ -18,8 +18,8 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ChatServiceClient interface {
-	JoinServer(ctx context.Context, in *User, opts ...grpc.CallOption) (*Empty, error)
-	SendMessage(ctx context.Context, in *Message, opts ...grpc.CallOption) (*MessageAck, error)
+	//rpc JoinServer(User) returns (stream ServerMessage) {}
+	ChatMessage(ctx context.Context, opts ...grpc.CallOption) (ChatService_ChatMessageClient, error)
 }
 
 type chatServiceClient struct {
@@ -30,30 +30,43 @@ func NewChatServiceClient(cc grpc.ClientConnInterface) ChatServiceClient {
 	return &chatServiceClient{cc}
 }
 
-func (c *chatServiceClient) JoinServer(ctx context.Context, in *User, opts ...grpc.CallOption) (*Empty, error) {
-	out := new(Empty)
-	err := c.cc.Invoke(ctx, "/routeguide.ChatService/JoinServer", in, out, opts...)
+func (c *chatServiceClient) ChatMessage(ctx context.Context, opts ...grpc.CallOption) (ChatService_ChatMessageClient, error) {
+	stream, err := c.cc.NewStream(ctx, &ChatService_ServiceDesc.Streams[0], "/routeguide.ChatService/ChatMessage", opts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	x := &chatServiceChatMessageClient{stream}
+	return x, nil
 }
 
-func (c *chatServiceClient) SendMessage(ctx context.Context, in *Message, opts ...grpc.CallOption) (*MessageAck, error) {
-	out := new(MessageAck)
-	err := c.cc.Invoke(ctx, "/routeguide.ChatService/SendMessage", in, out, opts...)
-	if err != nil {
+type ChatService_ChatMessageClient interface {
+	Send(*Message) error
+	Recv() (*MessageResponse, error)
+	grpc.ClientStream
+}
+
+type chatServiceChatMessageClient struct {
+	grpc.ClientStream
+}
+
+func (x *chatServiceChatMessageClient) Send(m *Message) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *chatServiceChatMessageClient) Recv() (*MessageResponse, error) {
+	m := new(MessageResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
-	return out, nil
+	return m, nil
 }
 
 // ChatServiceServer is the server API for ChatService service.
 // All implementations must embed UnimplementedChatServiceServer
 // for forward compatibility
 type ChatServiceServer interface {
-	JoinServer(context.Context, *User) (*Empty, error)
-	SendMessage(context.Context, *Message) (*MessageAck, error)
+	//rpc JoinServer(User) returns (stream ServerMessage) {}
+	ChatMessage(ChatService_ChatMessageServer) error
 	mustEmbedUnimplementedChatServiceServer()
 }
 
@@ -61,11 +74,8 @@ type ChatServiceServer interface {
 type UnimplementedChatServiceServer struct {
 }
 
-func (UnimplementedChatServiceServer) JoinServer(context.Context, *User) (*Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method JoinServer not implemented")
-}
-func (UnimplementedChatServiceServer) SendMessage(context.Context, *Message) (*MessageAck, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SendMessage not implemented")
+func (UnimplementedChatServiceServer) ChatMessage(ChatService_ChatMessageServer) error {
+	return status.Errorf(codes.Unimplemented, "method ChatMessage not implemented")
 }
 func (UnimplementedChatServiceServer) mustEmbedUnimplementedChatServiceServer() {}
 
@@ -80,40 +90,30 @@ func RegisterChatServiceServer(s grpc.ServiceRegistrar, srv ChatServiceServer) {
 	s.RegisterService(&ChatService_ServiceDesc, srv)
 }
 
-func _ChatService_JoinServer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(User)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ChatServiceServer).JoinServer(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/routeguide.ChatService/JoinServer",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ChatServiceServer).JoinServer(ctx, req.(*User))
-	}
-	return interceptor(ctx, in, info, handler)
+func _ChatService_ChatMessage_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(ChatServiceServer).ChatMessage(&chatServiceChatMessageServer{stream})
 }
 
-func _ChatService_SendMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Message)
-	if err := dec(in); err != nil {
+type ChatService_ChatMessageServer interface {
+	Send(*MessageResponse) error
+	Recv() (*Message, error)
+	grpc.ServerStream
+}
+
+type chatServiceChatMessageServer struct {
+	grpc.ServerStream
+}
+
+func (x *chatServiceChatMessageServer) Send(m *MessageResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *chatServiceChatMessageServer) Recv() (*Message, error) {
+	m := new(Message)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
-	if interceptor == nil {
-		return srv.(ChatServiceServer).SendMessage(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/routeguide.ChatService/SendMessage",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ChatServiceServer).SendMessage(ctx, req.(*Message))
-	}
-	return interceptor(ctx, in, info, handler)
+	return m, nil
 }
 
 // ChatService_ServiceDesc is the grpc.ServiceDesc for ChatService service.
@@ -122,16 +122,14 @@ func _ChatService_SendMessage_Handler(srv interface{}, ctx context.Context, dec 
 var ChatService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "routeguide.ChatService",
 	HandlerType: (*ChatServiceServer)(nil),
-	Methods: []grpc.MethodDesc{
+	Methods:     []grpc.MethodDesc{},
+	Streams: []grpc.StreamDesc{
 		{
-			MethodName: "JoinServer",
-			Handler:    _ChatService_JoinServer_Handler,
-		},
-		{
-			MethodName: "SendMessage",
-			Handler:    _ChatService_SendMessage_Handler,
+			StreamName:    "ChatMessage",
+			Handler:       _ChatService_ChatMessage_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
 	Metadata: "route.proto",
 }

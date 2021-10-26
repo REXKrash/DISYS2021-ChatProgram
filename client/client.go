@@ -5,8 +5,6 @@ import (
 	"log"
 	"time"
 
-	uuid "github.com/nu7hatch/gouuid"
-
 	pb "chat-program/routeguide"
 
 	"google.golang.org/grpc"
@@ -24,13 +22,27 @@ func main() {
 	defer connection.Close()
 	client := pb.NewChatServiceClient(connection)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
+	ctx := context.Background()
 
 	log.Println("Sending request to join chat room...")
-	uuid, _ := uuid.NewV4()
-	_, err = client.JoinServer(ctx, &pb.User{Name: "Tue", Uuid: uuid.String()})
+	//uuid, _ := uuid.NewV4()
+	stream, err := client.ChatMessage(ctx)
 	if err != nil {
 		log.Fatalf("Could not greet: %v", err)
+	}
+	go func() {
+		for {
+			if err := stream.SendMsg(&pb.Message{Message: "Hello there"}); err != nil {
+				log.Fatal(err)
+			}
+			time.Sleep(1 * time.Second)
+		}
+	}()
+	for {
+		serverMessage, err := stream.Recv()
+		if err != nil {
+			log.Fatalf("Failed to receive from server: %v", err)
+		}
+		log.Println("Received from server:", serverMessage.Message)
 	}
 }
