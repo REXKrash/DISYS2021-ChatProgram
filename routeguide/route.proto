@@ -11,9 +11,11 @@ service ChatService {
 message Message {
     string sender = 1;
     string message = 2;
+    int32 timestamp = 3;
 }
 
 message MessageResponse {
     string sender = 1;
     string message = 2;
+    int32 timestamp = 3;
 }

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"log"
+	"math"
 	"os"
 	"time"
 
@@ -17,7 +18,16 @@ const (
 )
 
 func main() {
-	userName := os.Args[1]
+	sc := bufio.NewScanner(os.Stdin)
+
+	var userName string
+	if len(os.Args) > 0 {
+		userName = os.Args[1]
+	} else {
+		log.Println("Please enter your username:")
+		sc.Scan()
+		userName = sc.Text()
+	}
 
 	connection, err := grpc.Dial(address, grpc.WithInsecure())
 	if err != nil {
@@ -33,11 +43,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("Could not greet: %v", err)
 	}
-	sc := bufio.NewScanner(os.Stdin)
+	timestamp := 0
 	go func() {
 		for {
 			sc.Scan()
-			if err := stream.SendMsg(&pb.Message{Sender: userName, Message: sc.Text()}); err != nil {
+			if err := stream.SendMsg(&pb.Message{Sender: userName, Message: sc.Text(), Timestamp: int32(timestamp + 1)}); err != nil {
 				log.Fatal(err)
 			}
 			time.Sleep(1 * time.Second)
@@ -48,6 +58,8 @@ func main() {
 		if err != nil {
 			log.Fatalf("Failed to receive from server: %v", err)
 		}
-		log.Println(serverMessage.Sender+":", serverMessage.Message)
+		timestamp = int(math.Max(float64(timestamp), float64(serverMessage.Timestamp))) + 1
+
+		log.Println(serverMessage.Sender+":", serverMessage.Message, "- timestamp:", serverMessage.Timestamp)
 	}
 }
