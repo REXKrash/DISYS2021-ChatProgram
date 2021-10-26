@@ -7,6 +7,7 @@ import (
 
 	pb "chat-program/routeguide"
 
+	uuid "github.com/nu7hatch/gouuid"
 	"google.golang.org/grpc"
 )
 
@@ -25,14 +26,14 @@ func main() {
 	ctx := context.Background()
 
 	log.Println("Sending request to join chat room...")
-	//uuid, _ := uuid.NewV4()
+	uuid, _ := uuid.NewV4()
 	stream, err := client.ChatMessage(ctx)
 	if err != nil {
 		log.Fatalf("Could not greet: %v", err)
 	}
 	go func() {
 		for {
-			if err := stream.SendMsg(&pb.Message{Message: "Hello there"}); err != nil {
+			if err := stream.SendMsg(&pb.Message{Sender: uuid.String(), Message: "Hello there"}); err != nil {
 				log.Fatal(err)
 			}
 			time.Sleep(1 * time.Second)
@@ -43,6 +44,6 @@ func main() {
 		if err != nil {
 			log.Fatalf("Failed to receive from server: %v", err)
 		}
-		log.Println("Received from server:", serverMessage.Message)
+		log.Println(serverMessage.Sender+":", serverMessage.Message)
 	}
 }

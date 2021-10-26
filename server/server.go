@@ -8,26 +8,29 @@ import (
 
 	pb "chat-program/routeguide"
 
+	uuid "github.com/nu7hatch/gouuid"
 	"google.golang.org/grpc"
 )
 
 const port = ":50051"
 
-//var users = make(map[string]pb.User)
+var users = make(map[string]pb.ChatService_ChatMessageServer)
 
 type server struct {
 	pb.UnimplementedChatServiceServer
 }
 
 func (s *server) ChatMessage(in pb.ChatService_ChatMessageServer) error {
-	//log.Printf("Received Join server request from user: %v and uuid: %v", in.GetName(), in.GetUuid())
-	//users[in.GetUuid()] = in
+	uuid, _ := uuid.NewV4()
+	users[uuid.String()] = in
+
 	defer func() {
 		if err := recover(); err != nil {
 			log.Printf("panic: %v", err)
 			os.Exit(1)
 		}
 	}()
+
 	for {
 		input, error := in.Recv()
 		if error != nil {
@@ -36,13 +39,13 @@ func (s *server) ChatMessage(in pb.ChatService_ChatMessageServer) error {
 		}
 		log.Println("Received input", input.Message)
 
-		if err := in.Send(&pb.MessageResponse{Message: "Hello again"}); err != nil {
-			log.Printf("broadcast err: %v", err)
+		for _, v := range users {
+			if err := v.Send(&pb.MessageResponse{Sender: input.Sender, Message: input.Message}); err != nil {
+				log.Printf("broadcast err: %v", err)
+			}
 		}
 	}
 	return nil
-
-	//return &pb.MessageResponse{Status: "1", Message: "You successfully joined the chat room"}, nil
 }
 
 func main() {
