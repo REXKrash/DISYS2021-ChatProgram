@@ -5,7 +5,9 @@ option go_package = "./routeguide";
 package routeguide;
 
 service ChatService {
-    rpc ChatMessage(stream Message) returns (stream MessageResponse) {}
+    rpc JoinChatServer(User) returns (stream MessageResponse) {}
+    rpc LeaveChatServer(User) returns (Response) {}
+    rpc SendMessage(Message) returns (Response) {}
 }
 
 message Message {
@@ -18,4 +20,15 @@ message MessageResponse {
     string sender = 1;
     string message = 2;
     int32 timestamp = 3;
+}
+
+message User {
+    string uuid = 1;
+    string name = 2;
+    int32 timestamp = 3;
+}
+
+message Response {
+    int32 status = 1;
+    int32 timestamp = 2;
 }
