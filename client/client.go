@@ -56,11 +56,13 @@ func main() {
 		for {
 			sc.Scan()
 			var msg = sc.Text()
-			if len(msg) > 0 {
+			if len(msg) > 0 && len(msg) <= 128 {
 				_, err := client.SendMessage(ctx, &pb.Message{Sender: userName, Message: msg, Timestamp: timestamp + 1})
 				if err != nil {
 					log.Fatalln("Failed to send message")
 				}
+			} else {
+				log.Println("Message must be between 1-128 characters")
 			}
 		}
 	}()
