@@ -5,12 +5,12 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"math"
 	"os"
 	"os/signal"
 	"syscall"
 
 	pb "chat-program/routeguide"
+	sh "chat-program/shared"
 
 	uuid "github.com/nu7hatch/gouuid"
 	"google.golang.org/grpc"
@@ -21,6 +21,7 @@ const (
 )
 
 var user pb.User
+var timestamp sh.SafeTimestamp
 
 func main() {
 	sc := bufio.NewScanner(os.Stdin)
@@ -45,8 +46,7 @@ func main() {
 
 	log.Println("Sending request to join chat room...")
 	uuid, _ := uuid.NewV4()
-	var timestamp int32
-	user = pb.User{Uuid: uuid.String(), Name: userName, Timestamp: timestamp}
+	user = pb.User{Uuid: uuid.String(), Name: userName, Timestamp: timestamp.Value()}
 	stream, err := client.JoinChatServer(ctx, &user)
 	if err != nil {
 		log.Fatalf("Could not greet: %v", err)
@@ -57,7 +57,7 @@ func main() {
 			sc.Scan()
 			var msg = sc.Text()
 			if len(msg) > 0 && len(msg) <= 128 {
-				_, err := client.SendMessage(ctx, &pb.Message{Sender: userName, Message: msg, Timestamp: timestamp + 1})
+				_, err := client.SendMessage(ctx, &pb.Message{Sender: userName, Message: msg, Timestamp: timestamp.Value() + 1})
 				if err != nil {
 					log.Fatalln("Failed to send message")
 				}
@@ -71,7 +71,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("Failed to receive from server: %v", err)
 		}
-		timestamp = int32(math.Max(float64(timestamp), float64(serverMessage.Timestamp))) + 1
+		timestamp.MaxInc(serverMessage.Timestamp)
 
 		log.Println(serverMessage.Sender+":", serverMessage.Message, "- timestamp:", serverMessage.Timestamp)
 	}

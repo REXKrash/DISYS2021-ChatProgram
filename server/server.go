@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"math"
 	"net"
 	"os"
 
 	pb "chat-program/routeguide"
+	sh "chat-program/shared"
 
 	"google.golang.org/grpc"
 )
@@ -16,7 +16,7 @@ import (
 const port = ":50051"
 
 var users = make(map[string]UserEntity)
-var timestamp = 0
+var timestamp sh.SafeTimestamp
 
 type server struct {
 	pb.UnimplementedChatServiceServer
@@ -35,36 +35,32 @@ func newUserEntity(srv pb.ChatService_JoinChatServerServer) UserEntity {
 }
 
 func broadcast(sender string, message string) {
-	log.Println(sender+":", message)
-	timestamp++
+	log.Println(sender+":", message, "Timestamp:", timestamp.Value())
+	timestamp.Increment()
 	for _, v := range users {
-		if err := v.server.Send(&pb.MessageResponse{Sender: sender, Message: message, Timestamp: int32(timestamp)}); err != nil {
+		if err := v.server.Send(&pb.MessageResponse{Sender: sender, Message: message, Timestamp: timestamp.Value()}); err != nil {
 			log.Println("Failed to broadcast:", err)
 		}
 	}
 }
 
-func updateTimestamp(inputTimestamp int) {
-	timestamp = int(math.Max(float64(timestamp), float64(inputTimestamp))) + 1
-}
-
 func (s *server) SendMessage(ctx context.Context, msg *pb.Message) (*pb.Response, error) {
 	broadcast(msg.Sender, msg.Message)
-	updateTimestamp(int(msg.Timestamp))
+	timestamp.MaxInc(msg.Timestamp)
 	return &pb.Response{Status: 1}, nil
 }
 
 func (s *server) LeaveChatServer(ctx context.Context, user *pb.User) (*pb.Response, error) {
 	users[user.Uuid].leave <- true
 	delete(users, user.Uuid)
-	updateTimestamp(int(user.Timestamp))
+	timestamp.MaxInc(user.Timestamp)
 	broadcast("Server", (user.Name + " left the server"))
 	return &pb.Response{Status: 1}, nil
 }
 
 func (s *server) JoinChatServer(user *pb.User, srv pb.ChatService_JoinChatServerServer) error {
 	users[user.Uuid] = newUserEntity(srv)
-	updateTimestamp(int(user.Timestamp))
+	timestamp.MaxInc(user.Timestamp)
 	broadcast("Server", (user.Name + " has joined the chat room"))
 
 	defer func() {
