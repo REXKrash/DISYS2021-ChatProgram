@@ -35,8 +35,8 @@ func newUserEntity(srv pb.ChatService_JoinChatServerServer) UserEntity {
 }
 
 func broadcast(sender string, message string) {
-	log.Println(sender+":", message, "Timestamp:", timestamp.Value())
 	timestamp.Increment()
+	log.Println(sender+":", message, "Timestamp:", timestamp.Value())
 	for _, v := range users {
 		if err := v.server.Send(&pb.MessageResponse{Sender: sender, Message: message, Timestamp: timestamp.Value()}); err != nil {
 			log.Println("Failed to broadcast:", err)
@@ -45,8 +45,8 @@ func broadcast(sender string, message string) {
 }
 
 func (s *server) SendMessage(ctx context.Context, msg *pb.Message) (*pb.Response, error) {
-	broadcast(msg.Sender, msg.Message)
 	timestamp.MaxInc(msg.Timestamp)
+	broadcast(msg.Sender, msg.Message)
 	return &pb.Response{Status: 1}, nil
 }
 

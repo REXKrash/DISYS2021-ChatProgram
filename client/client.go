@@ -46,7 +46,7 @@ func main() {
 
 	log.Println("Sending request to join chat room...")
 	uuid, _ := uuid.NewV4()
-	user = pb.User{Uuid: uuid.String(), Name: userName, Timestamp: timestamp.Value()}
+	user = pb.User{Uuid: uuid.String(), Name: userName, Timestamp: timestamp.IncrementAndGet()}
 	stream, err := client.JoinChatServer(ctx, &user)
 	if err != nil {
 		log.Fatalf("Could not greet: %v", err)
@@ -57,7 +57,7 @@ func main() {
 			sc.Scan()
 			var msg = sc.Text()
 			if len(msg) > 0 && len(msg) <= 128 {
-				_, err := client.SendMessage(ctx, &pb.Message{Sender: userName, Message: msg, Timestamp: timestamp.Value() + 1})
+				_, err := client.SendMessage(ctx, &pb.Message{Sender: userName, Message: msg, Timestamp: timestamp.IncrementAndGet()})
 				if err != nil {
 					log.Fatalln("Failed to send message")
 				}
@@ -73,7 +73,7 @@ func main() {
 		}
 		timestamp.MaxInc(serverMessage.Timestamp)
 
-		log.Println(serverMessage.Sender+":", serverMessage.Message, "- timestamp:", serverMessage.Timestamp)
+		log.Println(serverMessage.Sender+":", serverMessage.Message, "- timestamp:", timestamp.Value())
 	}
 }
 
